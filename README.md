@@ -47,19 +47,19 @@ python port-scanner.py scanme.nmap.org
 ```
 **2\. Fast Scan (Top 1000 ports using 100 threads)**
 ```bash
-python port-scanner.py 192.168.1.5 \-p top1000 \-t 100
+python port-scanner.py 192.168.1.5 -p top1000 -t 100
 ```
 **3\. Scan specific ports with verbose output**
 ```bash
-python port-scanner.py 10.0.0.1 \-p 21,22,80,443,8080 \-v
+python port-scanner.py 10.0.0.1 -p 21,22,80,443,8080 -v
 ```
 **4\. Scan all 65,535 ports, but exclude port 80**
 ```bash
-python port-scanner.py 192.168.1.1 \-p \- \-e 80 \-t 200
+python port-scanner.py 192.168.1.1 -p- -e 80 -t 200
 ```
 **5\. Scan a host that blocks ICMP Pings (Force Scan)**
 ```bash
-python port-scanner.py 10.0.0.25 \-Pn
+python port-scanner.py 10.0.0.25 -Pn
 ```
 ## **Disclaimer**
 

@@ -4,6 +4,7 @@ import sys
 import subprocess
 import platform
 import concurrent.futures
+import time
 
 # Terminal Colors
 class Color:
@@ -32,7 +33,7 @@ TOP_100_PORTS = [
 def get_args():
   parser = argparse.ArgumentParser(
       description="Simple Python-Based Port Scanner.",
-      epilog="Usage: python port-scanner.py 192.168.1.1"
+      epilog="Usage: python port-scanner.py scanme.nmap.org"
       )
 
   parser.add_argument("target", help="The target IP address or hostname to scan") # .target
@@ -40,6 +41,8 @@ def get_args():
   parser.add_argument("-e", "--exclude", help="Ports to exclude from scanning (e.g., 80, 21,22,23, 1-100)") # .exclude
   parser.add_argument("-Pn", help="Disable host discovery, treating all hosts as online", action="store_true") # .Pn
   parser.add_argument("-v", help="More verbose", action="store_true") # .v
+  parser.add_argument("-t", "--threads", help="Number of threads for concurrent scanning (default: 4)", type=int, default=4) # .threads
+  parser.add_argument("--disable-multithreading", help="Disable multithreading and scan ports sequentially.", action="store_true") # .disable_multithreading
   
   return parser.parse_args()
 
@@ -105,7 +108,7 @@ if __name__ == "__main__":
   # Host Discovery
   try:
     target_ip = socket.gethostbyname(args.target)
-    print(target_ip)
+    print(f"{ColoredIcons.OPEN} Target IP: {target_ip}")
   except socket.gaierror:
     print(f"{ColoredIcons.ERROR} Could not resolve hostname: {args.target}")
     sys.exit(1)
@@ -130,9 +133,24 @@ if __name__ == "__main__":
     print(f"{ColoredIcons.INFO} Excluded {len(ports_to_exclude)} from the scanning process")
 
   open_ports = []
-  for p in ports:
-    open_port = scan_port(target_ip, p, args.v)
-    if open_port is not None: open_ports.append(open_port)
+  if args.disable_multithreading:
+    print(f"{ColoredIcons.INFO} Scanning ports sequentially...")
+    start_time = time.perf_counter()
+    for p in ports:
+      open_port = scan_port(target_ip, p, args.v)
+      if open_port is not None: open_ports.append(open_port)
+    end_time = time.perf_counter()
+    print(f"{ColoredIcons.INFO} Scanned {len(ports)} ports in {end_time - start_time:.2f} seconds")
+  else:
+    start_time = time.perf_counter()
+    with concurrent.futures.ThreadPoolExecutor(max_workers=args.threads) as executor:
+      futures = {executor.submit(scan_port, target_ip, p, args.v): p for p in ports}
+      for future in concurrent.futures.as_completed(futures):
+        result = future.result()
+        if result is not None: open_ports.append(result)
+    end_time = time.perf_counter()
+    print(f"{ColoredIcons.INFO} Scanned {len(ports)} ports in {end_time - start_time:.2f} seconds")
+    open_ports.sort() # Sort open ports in ascending order
 
   # Reporting
 

@@ -7,11 +7,17 @@ import concurrent.futures
 
 # Terminal Colors
 class Color:
-    RED = '\033[91m'
-    GREEN = '\033[92m'
-    YELLOW = '\033[93m'
-    BLUE = '\033[94m'
-    RESET = '\033[0m'
+  RED = '\033[91m'
+  GREEN = '\033[92m'
+  YELLOW = '\033[93m'
+  BLUE = '\033[94m'
+  RESET = '\033[0m'
+
+class ColoredIcons:
+  OPEN = f"{Color.GREEN}[+]{Color.RESET}"
+  CLOSED = f"{Color.YELLOW}[-]{Color.RESET}"
+  ERROR = f"{Color.RED}[!]{Color.RESET}"
+  INFO = f"{Color.BLUE}[*]{Color.RESET}"
 
 TOP_100_PORTS = [
     7, 9, 13, 21, 22, 23, 25, 26, 37, 53, 79, 80, 81, 88, 106, 110, 111, 113, 119, 
@@ -31,14 +37,15 @@ def get_args():
 
   parser.add_argument("target", help="The target IP address or hostname to scan") # .target
   parser.add_argument("-p", "--ports", help="The target ports (e.g., 80, 21,22,23, 1-100)", default="top100") # .ports
-  parser.add_argument("-Pn", help="Disable host discovery, treating all hosts as online", action="store_true")
-  parser.add_argument("-v", help="More verbose", action="store_true")
+  parser.add_argument("-e", "--exclude", help="Ports to exclude from scanning (e.g., 80, 21,22,23, 1-100)") # .exclude
+  parser.add_argument("-Pn", help="Disable host discovery, treating all hosts as online", action="store_true") # .Pn
+  parser.add_argument("-v", help="More verbose", action="store_true") # .v
   
   return parser.parse_args()
 
 def parse_ports(port_args: str) -> list:
   if port_args == "top100":
-    print(f"{Color.BLUE}[*]{Color.RESET} No port given. Defaulting to Nmap's Top 100 most common TCP ports")
+    print(f"{ColoredIcons.INFO} No port given. Defaulting to Nmap's Top 100 most common TCP ports")
     return TOP_100_PORTS
 
   ports = []
@@ -52,7 +59,7 @@ def parse_ports(port_args: str) -> list:
       ports = [int(port_args)]
     return ports
   except ValueError:
-    print(f"{Color.RED}[!]{Color.RESET} Invalid Port Format.")
+    print(f"{ColoredIcons.ERROR} Invalid Port Format.")
     sys.exit(1)
 
 
@@ -67,7 +74,7 @@ def discover_host(target: str):
     # result = subprocess.run(command)
     return result.returncode == 0
   except Exception as e:
-    print(f"{Color.RED}[!]{Color.RESET} Ping Failed: {e}")
+    print(f"{ColoredIcons.ERROR} Ping Failed: {e}")
     return False
 
 def scan_port(
@@ -79,14 +86,14 @@ def scan_port(
   s.settimeout(1)
   try:
     s.connect((target, port))
-    if verbose: print(f"{Color.GREEN}[+]{Color.RESET} Port {port} is OPEN")
+    if verbose: print(f"{ColoredIcons.OPEN} Port {port} is OPEN")
     return port
   except ConnectionRefusedError:
-    if verbose: print(f"{Color.YELLOW}[-]{Color.RESET} Port {port} is CLOSED (Connection Refused)")
+    if verbose: print(f"{ColoredIcons.CLOSED} Port {port} is CLOSED (Connection Refused)")
   except socket.timeout:
-    if verbose: print(f"{Color.YELLOW}[-]{Color.RESET} Port {port} is FILTERED/CLOSED (Timeout)")
+    if verbose: print(f"{ColoredIcons.CLOSED} Port {port} is FILTERED/CLOSED (Timeout)")
   except socket.error as err:
-    print(f"{Color.RED}[!]{Color.RESET} Socket Failed To Initialize: {err}")
+    print(f"{ColoredIcons.ERROR} Socket Failed To Initialize: {err}")
   finally:
     # Making sure that socket always closes
     s.close()
@@ -100,22 +107,27 @@ if __name__ == "__main__":
     target_ip = socket.gethostbyname(args.target)
     print(target_ip)
   except socket.gaierror:
-    print(f"{Color.RED}[!]{Color.RESET} Could not resolve hostname: {args.target}")
+    print(f"{ColoredIcons.ERROR} Could not resolve hostname: {args.target}")
     sys.exit(1)
 
   if args.Pn:
-    print(f"{Color.BLUE}[*]{Color.RESET} Skipping host discovery (-Pn), Treating {target_ip} as online")
+    print(f"{ColoredIcons.INFO} Skipping host discovery (-Pn), Treating {target_ip} as online")
   else:
-    print(f"{Color.BLUE}[*]{Color.RESET} Checking if {target_ip} is online...")
+    print(f"{ColoredIcons.INFO} Checking if {target_ip} is online...")
     if discover_host(target_ip):
-      print(f"{Color.GREEN}[+]{Color.RESET} Host {target_ip} is online.")
+      print(f"{ColoredIcons.OPEN} Host {target_ip} is online.")
     else:
-      print(f"{Color.YELLOW}[-]{Color.RESET} Host {target_ip} seems to be DOWN or not replying to ICMP Echo.")
-      print("{Color.YELLOW}[-]{Color.RESET} Exiting Scanner...")
+      print(f"{ColoredIcons.CLOSED} Host {target_ip} seems to be DOWN or not replying to ICMP Echo.")
+      print(f"{ColoredIcons.CLOSED} Exiting Scanner...")
       sys.exit(0)
 
   # Port Scanning
   ports = parse_ports(args.ports)
+
+  if args.exclude:
+    ports_to_exclude = parse_ports(args.exclude)
+    ports = [p for p in ports if p not in ports_to_exclude]
+    print(f"{ColoredIcons.INFO} Excluded {len(ports_to_exclude)} from the scanning process")
 
   open_ports = []
   for p in ports:
@@ -124,13 +136,13 @@ if __name__ == "__main__":
 
   # Reporting
 
-  print(f"{Color.BLUE}[*]{Color.RESET} Reporting...")
+  print(f"{ColoredIcons.INFO} Reporting...")
   if not open_ports:
-    print(f"{Color.YELLOW}[-]{Color.RESET}Host {target_ip} does not have any open port.")
+    print(f"{ColoredIcons.CLOSED}Host {target_ip} does not have any open port.")
   else:
     print(f"Port\t\tStatus")
     print(f"====\t\t======")
     for port in open_ports:
       print(f"{port}\t\tOPEN")
 
-  print(f"{Color.BLUE}[*]{Color.RESET} Port Scanning Complete")
+  print(f"{ColoredIcons.INFO} Port Scanning Complete")

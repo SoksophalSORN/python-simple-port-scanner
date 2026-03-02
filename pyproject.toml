@@ -1,0 +1,15 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "port-scanner"
+version = "1.0.0"
+description = "Simple Python-Based Port Scanner"
+
+# This is the magic part that creates the command
+[project.scripts]
+port-scanner = "port_scanner:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
